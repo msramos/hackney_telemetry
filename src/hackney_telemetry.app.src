@@ -10,7 +10,7 @@
     {env, [{report_interval, 1000}]},
     {modules, []},
     {licenses, ["Apache 2.0"]},
-    {links, [{"Github", "https://github.com/TheRealReal/hackney_telemetry"}]},
+    {links, [{"Github", "https://github.com/msramos/hackney_telemetry"}]},
     {
       files,
       [

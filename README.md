@@ -1,5 +1,8 @@
-![Tests](https://github.com/TheRealReal/hackney_telemetry/actions/workflows/ci.yml/badge.svg)
+![Tests](https://github.com/msramos/hackney_telemetry/actions/workflows/ci.yml/badge.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
+> [!IMPORTANT]
+> This is the new upstream of this project. The [TheRealReal](https://github.com/TheRealReal/hackney_telemetry) repository will no longer be mantained.
 
 # hackney_telemetry
 
@@ -63,7 +66,7 @@ A worker process has two jobs:
 ## Installation
 
 Install it from [Hex](https://hex.pm/packages/hackney_telemetry) or
-[Github](https://github.com/TheRealReal/hackney_telemetry).
+[Github](https://github.com/msramos/hackney_telemetry).
 
 ## Configuration
 
