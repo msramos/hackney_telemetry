@@ -1,9 +1,6 @@
-{
-  application,
-  hackney_telemetry,
-  [
+{application, hackney_telemetry, [
     {description, "An adapter to export hackney metrics to telemetry"},
-    {vsn, "0.1.3"},
+    {vsn, "0.2.0"},
     {registered, []},
     {mod, {hackney_telemetry_app, []}},
     {applications, [kernel, stdlib, telemetry]},
@@ -11,9 +8,7 @@
     {modules, []},
     {licenses, ["Apache 2.0"]},
     {links, [{"Github", "https://github.com/msramos/hackney_telemetry"}]},
-    {
-      files,
-      [
+    {files, [
         "src",
         "include",
         "rebar.config",
@@ -23,7 +18,5 @@
         "README.md",
         "LICENSE",
         "NOTICE"
-      ]
-    }
-  ]
-}.
+    ]}
+]}.

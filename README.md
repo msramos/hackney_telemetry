@@ -158,7 +158,7 @@ rebar3 ex_doc
 ## Format code
 
 ```console
-rebar3 steamroll
+rebar3 format
 ```
 
 ## Code of Conduct

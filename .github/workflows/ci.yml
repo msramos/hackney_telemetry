@@ -38,7 +38,7 @@ jobs:
             ${{ runner.os }}-mix-
 
       - name: Check formatting
-        run: rebar3 steamroll --check
+        run: rebar3 fmt --check
 
       - name: Run unit tests
         run: rebar3 ct
