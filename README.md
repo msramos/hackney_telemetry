@@ -8,14 +8,13 @@
 
 Telemetry adapter for Hackney metrics.
 
-This module is a [metrics handler](https://github.com/benoitc/hackney/blob/master/README.md#metrics)
-for the [Hackney](https://github.com/benoitc/hackney) HTTP client. It receives
-calls from Hackney to update metrics and generates [Telemetry](https://github.com/beam-telemetry/telemetry) events.
+> [!NOTE]
+> This version requires hackney 4.8. For hackney 1.x use 0.2.0.
 
-Hackney supports storing metrics in [Folsom](https://hex.pm/packages/folsom) or
-[Exometer](https://hex.pm/packages/exometer_core). Unfortunately, these
-libraries do not export data in a way that is useful for Telemetry,
-so we need to transform the metrics data before reporting it.
+Hackney 4 no longer reports metrics itself. This library adds a
+[middleware](https://hackney.hexdocs.pm/middleware.html) to hackney that
+tracks requests, and a poller that reads `hackney_pool:get_stats/1`, and
+generates [Telemetry](https://github.com/beam-telemetry/telemetry) events.
 
 ## Telemetry metrics
 
@@ -26,33 +25,52 @@ The following metrics are exported by this library to telemetry.
 | `hackney.nb_requests`       | -    | Current number of requests                            |
 | `hackney.finished_requests` | -    | Total number of finished requests                     |
 | `hackney.total_requests`    | -    | Total number of requests                              |
+| `hackney_pool.max`          | pool | Maximum number of idle sockets kept in a pool         |
 | `hackney_pool.free_count`   | pool | Number of free sockets in a connection pool           |
 | `hackney_pool.in_use_count` | pool | Number of busy sockets in a connection pool           |
-| `hackney_pool.no_socket`    | pool | Count of new connections                              |
-| `hackney_pool.queue_count`  | pool | Number of requests waiting for a connection in a pool |
-| `hackney_pool.take_rate`    | pool | Rate at which a connection is retrieved from the pool |
 
-This module implements all the callbacks required by `hackney_metrics` but it does
-not support host metrics.
+The poller reads the pools and `nb_requests` every `report_interval` (every
+second when it's 0). Pool metrics are emitted when they're read. `nb_requests`
+is reported by its worker, so it can be up to two intervals old. A request
+whose process is killed before it returns counts as finished at the next read.
 
-To use it, configure Hackney `mod_metrics` to use this module and make sure
-that the `hackney_telemetry` application starts before your application.
+In hackney 4, `in_use_count` can go above `max`: `max` bounds the idle sockets,
+not the busy ones.
 
-Hackney calls the module specified by `mod_metrics` to report instrumentation
-metrics. This module receives the data from Hackney and passes it to a
-`hackney_telemetry_worker` which keeps the current state of the metric and
-generates Telemetry events.
+Hackney 4 can't provide `hackney_pool.no_socket`, `hackney_pool.queue_count` or
+`hackney_pool.take_rate`, so they are no longer reported.
+
+The library also emits these events:
+
+| Event                            | Metadata                                        | Meaning                                               |
+| -------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| `[hackney, request, start]`      | method, host, pool                              | A request started                                     |
+| `[hackney, request, stop]`       | method, host, pool, status, error               | A request returned, with its `duration`               |
+| `[hackney, request, exception]`  | method, host, pool, kind, reason, stacktrace    | A request raised, with its `duration`                 |
+| `[hackney, checkout_timeout]`    | host, pool                                      | A request got `{error, checkout_timeout}`             |
+| `[hackney_pool, stats_timeout]`  | pool                                            | A pool didn't answer `get_stats/1` in time            |
+
+`pool` is `none` for requests that don't use a pool. `status` is `undefined`
+for errors and for async or streaming requests. Don't use `error`, `reason` or
+`stacktrace` as tags.
+
+To use it, make sure that the `hackney_telemetry` application starts before
+your application.
+
+The middleware passes request metrics to a `hackney_telemetry_worker`, which
+keeps the current state of the metric and generates Telemetry events.
+
+Requests that set their own `middleware` option replace hackney's global chain,
+so they are not counted.
 
 A worker process has two jobs:
 
 1.  Calculate metric values
 
-    Hackney does not keep the state of its metrics, but instead emits events to
-    the metrics engine, like "increase this counter by 1", "set this gauge to X",
-    "add Y to this histogram". The job of a metric worker is to process these
-    events and keep up-to-date state representing the value of the tracked metric.
-    State updates run in constant time (O(1)), important since a single
-    request generates about nine metric updates.
+    The middleware sends updates like "increase this counter by 1" for every
+    request. The job of a metric worker is to process these updates and keep
+    up-to-date state representing the value of the tracked metric. State
+    updates run in constant time (O(1)).
 
 2.  Send metric values to Telemetry
 
@@ -70,26 +88,16 @@ Install it from [Hex](https://hex.pm/packages/hackney_telemetry) or
 
 ## Configuration
 
-Configure set Hackney to send metrics to this module:
-
-**Erlang**
-
-```erlang
-{hackney, [{mod_metrics, hackney_telemetry}]}
-```
-
-**Elixir**
-
-```elixir
-config :hackney, mod_metrics: :hackney_telemetry
-```
+No hackney configuration is needed: the application installs its middleware
+when it starts.
 
 ### Options
 
 #### Report interval
 
 By default, workers will report data to telemetry every 1000 milliseconds.
-If set to 0, events are generated after every update.
+If set to 0, events are generated after every update. The poller uses the same
+interval, or every second when it's 0.
 
 You can change that by setting the `report_interval` option:
 
@@ -125,11 +133,15 @@ defmodule YourApplcation.Telemetry do
     last_value("hackney.nb_requests"),
     last_value("hackney.finished_requests"),
     last_value("hackney.total_requests"),
+    last_value("hackney_pool.max", tags: [:pool]),
     last_value("hackney_pool.free_count", tags: [:pool]),
     last_value("hackney_pool.in_use_count", tags: [:pool]),
-    last_value("hackney_pool.no_socket", tags: [:pool]),
-    last_value("hackney_pool.queue_count", tags: [:pool]),
-    last_value("hackney_pool.take_rate", tags: [:pool])
+    counter("hackney_pool.stats_timeout.count", tags: [:pool]),
+    counter("hackney.checkout_timeout.count", tags: [:host, :pool]),
+    distribution("hackney.request.stop.duration",
+      unit: {:native, :millisecond},
+      tags: [:host, :pool, :status]
+    )
   ]
   end
 end

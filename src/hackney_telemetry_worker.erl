@@ -102,8 +102,6 @@ telemetry_settings(Args) ->
     case Metric of
         [hackney, MeasurementKey] ->
             {ok, {[hackney], MeasurementKey, #{}}};
-        [hackney_pool, PoolName, MeasurementKey] ->
-            {ok, {[hackney_pool], MeasurementKey, #{pool => PoolName}}};
         _ ->
             {error, unsupported_metric}
     end.

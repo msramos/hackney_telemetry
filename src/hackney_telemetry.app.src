@@ -1,9 +1,9 @@
 {application, hackney_telemetry, [
     {description, "An adapter to export hackney metrics to telemetry"},
-    {vsn, "0.2.0"},
+    {vsn, "0.3.0"},
     {registered, []},
     {mod, {hackney_telemetry_app, []}},
-    {applications, [kernel, stdlib, telemetry]},
+    {applications, [kernel, stdlib, telemetry, hackney]},
     {env, [{report_interval, 1000}]},
     {modules, []},
     {licenses, ["Apache 2.0"]},
