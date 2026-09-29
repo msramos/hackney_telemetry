@@ -124,13 +124,17 @@ handle_cast({update_event, EventValue, TransformFun}, State) ->
         true ->
             ok
     end,
-    {noreply, UpdatedState}.
+    {noreply, UpdatedState};
+handle_cast(_Message, State) ->
+    {noreply, State}.
 
 %% @doc Handle report events
 
 handle_info(report, State) ->
     report(State),
     maybe_schedule_report(State),
+    {noreply, State};
+handle_info(_Message, State) ->
     {noreply, State}.
 
 %% @doc gen_server terminate callback

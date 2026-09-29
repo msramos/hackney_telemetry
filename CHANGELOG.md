@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Restart a crashed worker instead of stopping the application. The
+  supervisor allowed no restarts, so one crash stopped `hackney_telemetry`,
+  which stops the node when it runs as a permanent application.
+- Ignore casts and messages a worker doesn't handle instead of crashing.
+
 ## [0.2.0] - 2024-07-08
 ### Changed
 - Change project ownership

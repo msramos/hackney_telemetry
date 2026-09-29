@@ -7,7 +7,7 @@
 %% Setup/Teardown functions
 
 all() ->
-    [starts_and_stops_workers].
+    [starts_and_stops_workers, restarts_a_crashed_worker].
 
 init_per_suite(Config) ->
     application:ensure_all_started(telemetry),
@@ -38,3 +38,18 @@ starts_and_stops_workers(_Config) ->
     timer:sleep(15),
     false = is_process_alive(WorkerPid),
     [_, _, _] = supervisor:which_children(hackney_telemetry_sup).
+
+restarts_a_crashed_worker(Config) ->
+    SupPid = ?config(sup_pid, Config),
+    {global, Name} = hackney_telemetry_worker:worker_name([hackney, total_requests]),
+    WorkerPid = global:whereis_name(Name),
+    Ref = monitor(process, WorkerPid),
+    exit(WorkerPid, kill),
+    receive
+        {'DOWN', Ref, process, WorkerPid, _} -> ok
+    end,
+    timer:sleep(15),
+    true = is_process_alive(SupPid),
+    NewPid = global:whereis_name(Name),
+    true = is_pid(NewPid),
+    true = NewPid =/= WorkerPid.

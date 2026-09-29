@@ -5,7 +5,7 @@
 -include_lib("common_test/include/ct.hrl").
 
 all() ->
-    [scheduled_reports, state_updates].
+    [scheduled_reports, state_updates, ignores_unexpected_messages].
 
 %% Setup/Teardown functions
 
@@ -54,6 +54,20 @@ state_updates(_) ->
     after 50 ->
         ct:fail(timeout)
     end.
+
+ignores_unexpected_messages(_) ->
+    Metric = [hackney, test3],
+    {ok, Pid} = hackney_telemetry_worker:start_link([{metric, Metric}, {report_interval, 0}]),
+    gen_server:cast(Pid, unexpected),
+    Pid ! unexpected,
+    hackney_telemetry_worker:update(Metric, 7, fun replace/2),
+    receive
+        {telemetry_event, [hackney], #{test3 := 7}, #{}} ->
+            ok
+    after 50 ->
+        ct:fail(timeout)
+    end,
+    true = is_process_alive(Pid).
 
 %% Helpers
 
